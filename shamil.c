@@ -22,13 +22,12 @@ SOFTWARE.
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 #include <string.h>
 #include <ftw.h>
 #include <limits.h>
 #include <dirent.h>
-#include <unistd.h>     // USED FOR
-#include <time.h>       // CALCULATE FINISH TIME
+#include <unistd.h>
+#include <time.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #define isDebugging argc > 2 && strcmp(argv[2], "-db") == 0
