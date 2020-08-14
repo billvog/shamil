@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ftw.h>
+#include <libgen.h>
 #include <limits.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -10,12 +11,14 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #define isDebugging findIn(argc, argv, "-db") == 0
-#define _version "1.0"
+#define _version "1.1"
 
 long int pathSize = 0;
 int fileCount = 0, folderCount = 0;
-char** exceptions;
 int exCount = 0;
+
+char** exceptions;
+int debug = 0;
 
 clock_t begin;
 clock_t end;
@@ -25,9 +28,11 @@ int findIn(int count, char** array, char* item);
 int ftwFileCount(const char* file, const struct stat *ptr, int flags);
 long int countFileSize();
 char* displaySize(long int size);
+char* relpath(char* file);
 
 int main(int argc, char** argv) {
     if (isDebugging) {
+        debug = 1;
         begin = clock();
     }
 
@@ -40,12 +45,15 @@ int main(int argc, char** argv) {
     printf("%s######################### MADE BY %sBILLVOG%s ##########################%s\n\n", ANSI_COLOR_CYAN, ANSI_COLOR_BOLD_CYAN, ANSI_COLOR_CYAN, ANSI_COLOR_RESET);
 
     if ((argc > 1 && strcmp(argv[1], "--help") == 0) || argc == 1) {
-        printf("Shamil (%s) is a program to easily calculate the size of anything \nin your computer. Find the source-code here: https://github.com/billvog/shamil\n\n", _version);
-        printf("Usage: shamil <path> [-db (Calculate execution time)] [/\"file\" (to add exceptions)]\n");
+        printf("Shamil (%s) is a program to easily calculate the size of anything in your computer. Find the source-code here: https://github.com/billvog/shamil\n\n", _version);
+        printf("Usage: shamil [path (required)] [-db (Debug: Calculate execution time, Display all scanned paths)] [/path (to add exceptions)]\n");
         return 0;
     }
     else if (argc > 1) {
-        realpath(argv[1], _canonicalPath);
+        if (strcmp(argv[1], "-db") == 0)
+            realpath(".", _canonicalPath);
+        else
+            realpath(argv[1], _canonicalPath);
 
         for (int i = 2; i < argc; i++)
             if (argv[i][0] == '/') {
@@ -71,6 +79,9 @@ int main(int argc, char** argv) {
             return -1;
         }
     }
+
+    if (debug == 1)
+        printf("\n");
 
     folderCount > 0 ? --folderCount : folderCount;
     printf("%sPath: %s\nSize: %s\nFolder(s): %d, File(s): %d\n", ANSI_COLOR_RESET, _canonicalPath, displaySize(pathSize), folderCount, fileCount);
@@ -102,6 +113,13 @@ int findIn(int count, char** array, char* item) {
     return -1;
 }
 
+char* relpath(char* file) {
+    char *cwd = malloc(PATH_MAX);
+    getcwd(cwd, PATH_MAX);
+
+    return file + strlen(cwd);
+}
+
 int ftwFileCount(const char* file, const struct stat *ptr, int flags) {
     char formattedFile[PATH_MAX];
     strcpy(formattedFile, file);
@@ -110,7 +128,7 @@ int ftwFileCount(const char* file, const struct stat *ptr, int flags) {
     }
 
     for (int i = 0; i < exCount; i++)
-        if (strstr(formattedFile, exceptions[i]) != NULL)
+        if (strstr(formattedFile, relpath(exceptions[i])) != NULL)
             return 0;
 
     if (isDirectory(formattedFile) != 1) {
@@ -130,10 +148,14 @@ int ftwFileCount(const char* file, const struct stat *ptr, int flags) {
 }
 
 long int countFileSize(const char* path, int *count) {
-    FILE *fPointer = fopen(path, "r");
+    FILE *fPointer = fopen(path, "rb");
     (*count)++;
 
     if (fPointer == NULL) return -1;
+
+    if (debug == 1) {
+        printf("%s%s\n", ANSI_COLOR_BOLD_GREEN, path);
+    }
 
     fseek(fPointer, 0L, SEEK_END);
     return ftell(fPointer);
